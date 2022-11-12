@@ -1,56 +1,23 @@
-const { Http2ServerRequest } = require('http2')
+const { MessageEmbed } = require('discord.js');
+const { Http2ServerRequest } = require('http2');
+
 //const success = false;
 
 module.exports.setu = async function (message) {
-    var start = Date.now();
-    console.log("开始发送色图")
-    const http = require('https')
+    const Lsp = require('./lsp.js');
+    Lsp.add_lsp(message)
     //https://api.lolicon.app/#/setu?id=telegram-bot
 
     var url = 'https://api.lolicon.app/setu/v2?r18=2&size=regular&tag!=vtb'
     //var url = 'https://api.lolicon.app/setu/v2?size=regular&tag!=vtb'
-    http.get(url, (res) => {
-        let body = ""
-
-        res.on("data", (chunk) => {
-            body += chunk
-        });
-
-        res.on("end", () => {
-            try {
-                ;
-                let json = JSON.parse(body);
-                //console.log(json)
-                let url = json.data[0].urls.regular
-                let author = json.data[0].author
-                //console.log(url)
-                var get = Date.now()
-                //console.log("获取json用时: ", (get-start))
-                try {
-                    send(message)
-                    //download(url, json.data[0].pid + ";" + json.data[0].author + ".jpg", function () {
-                    //    console.log('done')
-                    //})
-                }
-                catch (err) {
-                    console.log("出错")
-                }
-
-            }
-            catch (error) {
-                //console.error(error.message)
-            };
-        });
-    }).on("error", (error) => {
-        console.error(error.message);
-    });
+    send(message)
 
 
 }
 
 async function send(message){
     var fs = require('fs')
-    var dir = fs.readdirSync("/home/pi/discord/temp/meme/setu/")
+    var dir = fs.readdirSync("/home/pi/botData/setu//")
     if (dir.length == 0){
         message.channel.send("被榨干了，稍后再冲吧")
         for (var i=0; i < 10; i++){
@@ -59,12 +26,18 @@ async function send(message){
         return
     }
     var rand = Math.floor(Math.random() * dir.length)
-    path = "/home/pi/discord/temp/meme/setu/"+dir[rand]
+    path = "/home/pi/botData/setu//"+dir[rand]
     var author = dir[rand].split(";")[1].split(".")[0]
-    var msg = await message.channel.send({files:[path]})
+    var pid = dir[rand].split(";")[0]
+    //var msg = await message.channel.send({files:[path]})
+    const embed = new MessageEmbed()
+    .setTitle("https://www.pixiv.net/artworks/"+pid)
+    .setDescription("作者："+author)
+    .setImage('attachment:/'+path)
+    var msg = await message.channel.send({embeds:[embed], files:[path]})
     msg.react('👍')
     msg.react('👎')
-    message.channel.send('作者：' + author)
+    //message.channel.send('作者：' + author)
     fs.unlink(path,()=>{
 
     })
@@ -108,7 +81,7 @@ async function fillLib() {
     var url = 'https://api.lolicon.app/setu/v2?r18=2&size=regular&tag!=vtb'
     //var url = 'https://api.lolicon.app/setu/v2?size=regular&tag!=vtb'
     const fs = require('fs')
-    var size = fs.readdirSync("/home/pi/discord/temp/meme/setu/").length
+    var size = fs.readdirSync("/home/pi/botData/setu//").length
     while (size < 100) {
         var pic_url = ""
         var author = ""
@@ -132,10 +105,10 @@ async function fillLib() {
                 resolve()
             })
         }))
-        await download(pic_url, "/home/pi/discord/temp/meme/setu/"+pid + ";" + author + "." + ext, function () {
+        await download(pic_url, "/home/pi/botData/setu//"+pid + ";" + author + "." + ext, function () {
             
         }).then(()=>{
-            size = fs.readdirSync("/home/pi/discord/temp/meme/setu/").length
+            size = fs.readdirSync("/home/pi/botData/setu//").length
         })
     }
 }

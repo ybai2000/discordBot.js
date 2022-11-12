@@ -1,97 +1,151 @@
 
-const Discord = require('discord.js');
+const { Client, Intents } = require('discord.js');
 const Covid = require('./covid.js');
 const Ding = require('./ding.js');
 const Answer = require('./answer.js');
-const Setu = require('./setu.js');
-const Music = require('./music.js')
+const Setu = require('./setu.js')
+Music = require('./music_new.js');
+// const Music = require('./music.js')
 const Memes = require('./wordsOfDing.js')
-const client = new Discord.Client();
+const Lsp = require('./lsp.js');
+const Help = require('./help.js');
+const client = new Client({
+  partials: ["CHANNEL"],
+  intents: [Intents.FLAGS.GUILDS,
+  Intents.FLAGS.GUILD_MESSAGES,
+  Intents.FLAGS.DIRECT_MESSAGES,
+  Intents.FLAGS.DIRECT_MESSAGE_TYPING,
+  Intents.FLAGS.GUILD_VOICE_STATES]
+});
+music = new Music.Music()
 
 var recorder = {
-  repet : [],
-  data : [],
-  channel : [],
-  member : []
+  repet: [],
+  data: [],
+  channel: [],
+  member: []
 }
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
 });
 
-client.on('message', message => {
+client.on('messageCreate', message => {
   var author = message.author.id;
   // 也可以使用if (message.author.tag != '时区换算#7477')
-  if (author == 627348371614597160){
+  if (author == 627348371614597160) {
     return;
   }
   var txt = message.content
   Answer.answer(txt, message);
-  if (message == "测试"){
-
-    //console.log("start test")
-    // Setu.fillLib()
-    message.channel.send('没有测试项目');
-    
-    //Music.music(message)
+  if (txt.length <= 2 && (!isNaN(txt) || txt == 'c' || txt == 'a')) {
+    let username = message.author.username
+    if (music.user[username] != null) {
+      music.handleSelection(message)
+    }
   }
-  
-  if (message == "时间") {
+  else if (txt == "测试") {
+    //message.channel.send('没有测试项目');
+
+
+    // message.content = "播放 BV1iP4y1Y7NE"
+    //   Music.music(message).catch(err=>{
+    //     message.channel.send(err)
+    //  })
+
+    //
+    //Music.test("BV1iP4y1Y7NE")
+    //Music.find("https://www.bilibili.com/video/BV1kf4y1y7bX")
+  }
+
+  else if (txt == "时间") {
     message.channel.send(Ding.dingTime());
     //message.channel.send(time());
   }
-  else if (message == "注卵") {
+  else if (txt == "注卵") {
     message.channel.send('该注卵了<@135118641657020416>')
   }
-  else if (message == "注卵时间") {
+  else if (txt == "注卵时间") {
     message.channel.send('<@135118641657020416>请立即注卵')
   }
-  else if (txt.includes("溜") || txt.includes("跑路")) {
+  else if (txt.includes("溜了") || txt.includes("跑路")) {
     message.react('🇫🇷');
   }
-  else if (message == "疫情"){
-    Covid.getCovid(message);
+  else if (txt == "疫情") {
+    //Covid.getCovid(message);
+    message.channel.send("学校统计疫情网站没了")
   }
-  else if (message == "色图" ){
+  else if (txt == "色图") {
     //message.channel.send("色图功能暂时离线")
-    if(message.channel.name == '字幕组' || message.channel.name == "色图"){
+    if (message.channel.name == '字幕组' || message.channel.name == "色图") {
       Setu.setu(message)
     }
-    else{
+    else {
+      //Setu.setu(message)
       message.channel.send("在这里？不是吧阿sir")
     }
   }
-  else if (message == "语录"){
-    if (message.channel.name == '字幕组'){
+  else if (txt == "语录") {
+    if (message.channel.name == '字幕组') {
       Memes.wordsOfDing(message)
     }
-    else{
+    else {
       message.channel.send("你要公开处刑吗")
     }
   }
-  else if (message == "猛犸"){
+  else if (txt == "猛犸") {
     Memes.menMa(message)
   }
-  else if (message == "piip"){
-    if(message.author.id == "269259720085209099"){
+  else if (txt == "piip") {
+    if (message.author.id == "269259720085209099") {
       const http = require('https')
-    http.get("https://checkip.amazonaws.com", (res)=>{
-      let body = ""
+      http.get("https://checkip.amazonaws.com", (res) => {
+        let body = ""
 
-      res.on("data", (chunk)=>{
-        body += chunk
+        res.on("data", (chunk) => {
+          body += chunk
+        })
+        res.on("end", () => {
+          message.author.send(body)
+        })
       })
-      res.on("end", ()=>{
-        message.author.send(body)
-      })
+    }
+
+  }
+  else if (txt == "谁是老色批") {
+    Lsp.lsp(message)
+  }
+  else if (txt == "我有多色批" || txt == "我有多色批？" || txt == "我有多色批?") {
+    Lsp.amI(message)
+  }
+  else if (txt == "请教教我") {
+    Help.help(message)
+  }
+  else if (txt[0] == '播' && txt[1] == '放' && txt[2] == ' ') {
+    // Music.music(message).catch(err=>{
+    //   message.channel.send(err)
+    // })
+    music.parseRequest(message).catch(err => {
+      err = '```' + err + '```'
+      message.channel.send(err)
     })
-    }
-    else{
-      message.channel.send("您配吗？")
-    }
-    
+  }
+  else if (txt == '播放列表' || txt == "歌单") {
+    music.getQueue(message)
+  }
+  // else if (txt == "别唱了"){
+
+  //}
+   else if (txt == "切歌"){
+    music.play(true, message)
+  }
+  else if(txt == "离开频道"){
+    music.endConnection()
+  }
+  else if(txt == "进来唱歌"){
+    music.newVoiceConnection(message)
   }
   else {
-      fudu(message);
+    fudu(message);
   }
 
 });
@@ -128,20 +182,20 @@ function time() {
 }
 
 function fudu(message) {
-  if(!recorder.channel.includes(message.channel.id)){
+  if (!recorder.channel.includes(message.channel.id)) {
     recorder.channel.push(message.channel.id)
     recorder.data.push(message.content)
     recorder.member.push([message.author.id])
     recorder.repet.push(0)
   }
-  else{
+  else {
     var index = recorder.channel.indexOf(message.channel.id)
-    if(recorder.data[index] == message.content){
+    if (recorder.data[index] == message.content) {
       // if(!recorder.member[index].includes(message.author.id)){
-      if(true){
-        recorder.repet[index]+=1
+      if (true) {
+        recorder.repet[index] += 1
         recorder.member[index].push(message.author.id)
-        if (recorder.repet[index] == 2){
+        if (recorder.repet[index] == 2) {
           message.channel.send(message.content)
           recorder.repet[index] = 0
           recorder.data[index] = ''
@@ -149,13 +203,12 @@ function fudu(message) {
         }
       }
     }
-    else{
+    else {
       recorder.data[index] = message.content
       recorder.repet[index] = 0
       recorder.member[index] = [message.author.id]
     }
   }
-  console.log(recorder)
 }
 
 

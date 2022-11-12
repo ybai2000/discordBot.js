@@ -1,6 +1,9 @@
+const { MessageEmbed } = require('discord.js')
+
 const VTCovid = "https://d2uchevld25wrj.cloudfront.net/MicroStrategy-public/servlet/mstrWeb?evt=2048001&src=mstrWeb.2048001&documentID=5211891511EB51F200000080EF75366F&currentViewMedia=1&visMode=0&Server=BI-PROD-APP-ESX.DB.VT.EDU&Project=Public%20Facing%20Project&Port=0&share=1&hiddensections=header,path,dockTop,dockLeft,footer"
 const UWCovid = "https://webapps.ehs.washington.edu/coviddashboard/newdashboard.php"
-const UPENNCovid = 'https://coronavirus.upenn.edu/content/dashboard'
+//const UPENNCovid = 'https://coronavirus.upenn.edu/content/dashboard'
+const UPENNCovid = 'https://public.tableau.com/vizql/w/D1LastWeek/v/LastWeek/vudcsv/sessions/21C737B6BFAC4841B7BA68E6412D8AAC-0:0/views/3322811505490009759_15442832674414365843?underlying_table_id=Migrated%20Data&underlying_table_caption=Full%20Data'
 const UCONNCovid = "https://coviddashboard.uconn.edu/"
 
 module.exports.getCovid = async function(message){
@@ -8,20 +11,25 @@ module.exports.getCovid = async function(message){
     
     const VTresponse = await fetch(VTCovid);
     const UWresponse = await fetch(UWCovid);
-    //const UPENNresponse = await fetch(UPENNCovid);
-    const UCONNresponse = await fetch(UCONNCovid);
+    const UPENNresponse = await fetch(UPENNCovid);
+    //const UCONNresponse = await fetch(UCONNCovid);
     const VTbody = await VTresponse.text();
     const UWbody = await UWresponse.text();
-    //const UPENNbody = await UPENNresponse.text();
-    const UCONNbody = await UCONNresponse.text();
-    
-    
- 
-    message.channel.send(readVT(VTbody))
-    message.channel.send(readUW(UWbody))
-    message.channel.send(readUCONN(UCONNbody))
-    var UPENN = "宾大数据请前往 "+UPENNCovid+" 自行查阅"
-    message.channel.send(UPENN)
+    const UPENNbody = await UPENNresponse.text();
+    //const UCONNbody = await UCONNresponse.text();
+    var msg = ""
+    msg += readVT(VTbody)+"\n"
+    msg += readUW(UWbody)
+    //msg += readUPENN(UPENNbody) +"\n"
+    const embed = new MessageEmbed()
+    .setDescription(msg)
+
+    message.channel.send({embeds:[embed]})
+    //message.channel.send(readVT(VTbody))
+    //message.channel.send(readUW(UWbody))
+    //message.channel.send(readUCONN(UCONNbody))
+    //var UPENN = "宾大数据请前往 "+UPENNCovid+" 自行查阅"
+    //message.channel.send(UPENN)
     //message.channel.send(readUPENN(UPENNbody))
 }
 
@@ -49,6 +57,7 @@ function readUW(body){
 }
 
 function readUPENN(body){
+    console.log(body)
     body = body.split("\n")[1];
     body = body.split(",")[2];
     var result = "宾大过去一周共测出"+body+"个阳性"

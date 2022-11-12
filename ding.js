@@ -50,14 +50,14 @@ module.exports.dingTime = function () {
         month++;
       }
       else if (i == 0 || i == 2 || i == 4 || i == 6 || i == 7 || i == 9 || i == 11) {
-        if (day <= 31) {
+        if (day < 32) {
           break;
         }
         day -= 31;
         month++;
       }
       else {
-        if (day <= 30) {
+        if (day < 31) {
           break;
         }
         day -= 30;
