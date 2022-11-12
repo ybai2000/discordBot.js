@@ -6,6 +6,7 @@ const em = new Events.EventEmitter();
 let queue = []
 let nowPlaying = {song: null, time: null}
 let player = Voice.createAudioPlayer()
+
 module.exports.Music = class {
 
     constructor() {
@@ -13,6 +14,7 @@ module.exports.Music = class {
         this.user = {}
         this.voiceConnection = null
         this.eventSetUp()
+        this.mostRecentIdle = new Date()
     }
 
     eventSetUp() {
@@ -21,12 +23,21 @@ module.exports.Music = class {
             console.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`);
         });
         player.on(Voice.AudioPlayerStatus.Idle, ()=>{
-            if(nowPlaying.time && new Date() - nowPlaying.time < 10000){
+            if(nowPlaying.time && new Date() - nowPlaying.time < 20000){
                 console.log('播放失败 重试')
                 this.retry()
             }
             else{
+                if(nowPlaying.time && new Date() - nowPlaying.time < 23000){
+                    nowPlaying.song.channel.send(nowPlaying.song.song.videoTitle+" 播放失败")
+                }
                 em.emit('newSong')
+                this.mostRecentIdle = new Date()
+                setTimeout(()=>{
+                    if((new Date() - this.mostRecentIdle) > 4700000){
+                        this.endConnection()
+                    }
+                }, 4800000) // 8min
             }
         })
         player.on(Voice.AudioPlayerStatus.AutoPaused, ()=>{
@@ -63,6 +74,7 @@ module.exports.Music = class {
         }
         else if(force && queue.length == 0){
             message.channel.send('没有下一首歌了')
+            player.stop()
             nowPlaying.song = null
             nowPlaying.time = null
             player.stop(true)
