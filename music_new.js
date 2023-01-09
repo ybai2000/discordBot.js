@@ -1,10 +1,12 @@
 var COOKIE = `buvid3=B2F2CFDC-4012-494F-893F-BFCD1C136695167644infoc; fingerprint=c7374606eeca2fb85a106e2e18500546; buvid_fp=c7374606eeca2fb85a106e2e18500546; buvid_fp_plain=undefined; CURRENT_FNVAL=4048; blackside_state=0; rpdid=|(ukJR~RRu~m0J'uYJJ)muR|R; video_page_version=v_old_home; PVID=1; LIVE_BUVID=AUTO1816359937738078; CURRENT_BLACKGAP=0; CURRENT_QUALITY=80; i-wanna-go-back=-1; b_ut=5; bp_video_offset_6985219=718529014989324300; buvid4=77CEB3CD-A0A0-83D0-33A7-8A7D49D3472185102-022012707-vbdP82J0xCsOb4IOme6pIg%3D%3D; sid=6245prcx; nostalgia_conf=-1; hit-dyn-v2=1; SESSDATA=07933da2%2C1671299734%2Caced8%2A61; bili_jct=4e27ee532190c604d94e3ef94f0ae5e9; DedeUserID=6985219; DedeUserID__ckMd5=32ffaf768f7408ce; fingerprint3=9199139f435c60d5de9c7e91f86e2d8c; b_nut=100; _uuid=DA4624A9-413A-4C1F-2FE3-42D3FA3A24A646597infoc; innersign=0; b_lsid=4D7CB3D7_184013C7FE8`
 const Axios = require('axios');
 const Voice = require('@discordjs/voice');
-const Events = require('events')
+const Events = require('events');
+//需要使用11.8.3版本的got,否则只能使用import格式
+const Got = require('got');
 const em = new Events.EventEmitter();
 let queue = []
-let nowPlaying = {song: null, time: null}
+let nowPlaying = { song: null, time: null }
 let player = Voice.createAudioPlayer()
 
 module.exports.Music = class {
@@ -17,31 +19,35 @@ module.exports.Music = class {
         this.mostRecentIdle = new Date()
     }
 
+
     eventSetUp() {
         em.on('newSong', this.play.bind())
         player.on('stateChange', (oldState, newState) => {
             console.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`);
         });
-        player.on(Voice.AudioPlayerStatus.Idle, ()=>{
-            if(nowPlaying.time && new Date() - nowPlaying.time < 20000){
+        player.on(Voice.AudioPlayerStatus.Idle, () => {
+            if (nowPlaying.time && new Date() - nowPlaying.time < 20000) {
                 console.log('播放失败 重试')
                 this.retry()
             }
-            else{
-                if(nowPlaying.time && new Date() - nowPlaying.time < 23000){
-                    nowPlaying.song.channel.send(nowPlaying.song.song.videoTitle+" 播放失败")
+            else {
+                if (nowPlaying.time && new Date() - nowPlaying.time < 23000) {
+                    nowPlaying.song.channel.send(nowPlaying.song.song.videoTitle + " 播放失败")
                 }
                 em.emit('newSong')
                 this.mostRecentIdle = new Date()
-                setTimeout(()=>{
-                    if((new Date() - this.mostRecentIdle) > 4700000){
+                setTimeout(() => {
+                    if ((new Date() - this.mostRecentIdle) > 4700000) {
                         this.endConnection()
                     }
                 }, 4800000) // 8min
             }
         })
-        player.on(Voice.AudioPlayerStatus.AutoPaused, ()=>{
+        player.on(Voice.AudioPlayerStatus.AutoPaused, () => {
             player.stop()
+        })
+        player.on('error', err =>{
+            console.log("Error: ", err.message)
         })
     }
 
@@ -66,13 +72,19 @@ module.exports.Music = class {
         }
         if (queue.length != 0) {
             let queueElem = queue.shift()
-            let audio = Voice.createAudioResource(queueElem.song.url[0])
+            let audioStream = Got.stream(queueElem.song.url[0], {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
+                    "refer": "https://bilibili.com"
+                }
+            })
+            let audio = Voice.createAudioResource(audioStream)
             let text = '正在播放: ' + queueElem.song.videoTitle
             queueElem.channel.send(text)
-            nowPlaying = {song: queueElem, time: new Date()}
+            nowPlaying = { song: queueElem, time: new Date() }
             player.play(audio)
         }
-        else if(force && queue.length == 0){
+        else if (force && queue.length == 0) {
             message.channel.send('没有下一首歌了')
             player.stop()
             nowPlaying.song = null
@@ -82,15 +94,21 @@ module.exports.Music = class {
 
     }
 
-    async retry(){
-        let audio = Voice.createAudioResource(nowPlaying.song.song.url[0])
+    async retry() {
+        let audioStream = Got.stream(nowPlaying.song.song.url[0], {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
+                "refer": "https://bilibili.com"
+            }
+        })
+        let audio = Voice.createAudioResource(audioStream)
         player.play(audio)
     }
 
 
     newVoiceConnection(message) {
-        if(!message.member.voice.channel){
-            
+        if (!message.member.voice.channel) {
+
             throw "你先进个频道"
         }
         this.voiceConnection = Voice.joinVoiceChannel({
@@ -101,14 +119,14 @@ module.exports.Music = class {
         this.voiceConnection.subscribe(player)
         this.voiceConnection.on('stateChange', (oldState, newState) => {
             console.log(`Connection transitioned from ${oldState.status} to ${newState.status}`);
-            if(newState.status == 'disconnected'){
+            if (newState.status == 'disconnected') {
                 this.voiceConnection = null
             }
         });
     }
 
-    endConnection(){
-        if(!this.voiceConnection){
+    endConnection() {
+        if (!this.voiceConnection) {
             return
         }
         this.voiceConnection.destroy()
@@ -121,20 +139,24 @@ module.exports.Music = class {
         if (input[0] == 'B' && input[1] == 'V') {
 
             this.addVideo(input, false, message)
-            .catch(err => {
-                err = '```\n出错了: ' + err + '```'
-                message.channel.send(err)
-            })
+                .catch(err => {
+                    err = '```\n出错了: ' + err + '```'
+                    message.channel.send(err)
+                })
         }
         else if (input[0] == 'A' && input[1] == 'V' ||
             input[0] == 'a' && input[1] == 'v') {
             input = input.substring(2)
             this.addVideo(input, true, message)
-            .catch(err => {
-                err = '```\n出错了: ' + err + '```'
-                message.channel.send(err)
-            })
+                .catch(err => {
+                    err = '```\n出错了: ' + err + '```'
+                    message.channel.send(err)
+                })
 
+        }
+        else if(input.includes("www.bilibili.com")){
+            let id = await this.getByVidURL(input)
+            this.addVideo(id, true, message)
         }
         else {
             let searchResult = await this.search(input)
@@ -172,10 +194,10 @@ module.exports.Music = class {
             if (num == 'a') {
                 record.data.forEach(res => {
                     this.addPart(res, message)
-                    .catch(err => {
-                        err = '```\n出错了: ' + err + '```'
-                        message.channel.send(err)
-                    })
+                        .catch(err => {
+                            err = '```\n出错了: ' + err + '```'
+                            message.channel.send(err)
+                        })
                 })
             }
             else {
@@ -184,19 +206,19 @@ module.exports.Music = class {
                     return
                 }
                 this.addPart(record.data[num], message)
-                .catch(err => {
-                    err = '```\n出错了: ' + err + '```'
-                    message.channel.send(err)
-                })
+                    .catch(err => {
+                        err = '```\n出错了: ' + err + '```'
+                        message.channel.send(err)
+                    })
 
             }
-            
-            
+
+
             if (this.voiceConnection == null) {
-                try{
+                try {
                     this.newVoiceConnection(message)
                 }
-                catch(err){
+                catch (err) {
                     message.channel.send(err)
                     return
                 }
@@ -216,10 +238,10 @@ module.exports.Music = class {
             let song = await this.getLink(cids[0])
             queue.push({ song: song, channel: message.channel })
             if (this.voiceConnection == null) {
-                try{
+                try {
                     this.newVoiceConnection(message)
                 }
-                catch(err){
+                catch (err) {
                     message.channel.send(err)
                     return
                 }
@@ -354,6 +376,19 @@ module.exports.Music = class {
         return cidElem
     }
 
+    async getByVidURL(url) {
+        let webPage = await Axios.get(url).catch(err =>{throw "网址有误"})
+        let aid_expr = /"aid":\d+/
+        let cid_expr = /"pages":\[.+?\]/
+        let content = await webPage.data
+        let cid = content.match(cid_expr)
+        let aid = content.match(aid_expr)
+        if(aid == null){
+            throw "网址有误"
+        }
+        return aid[0].split(":")[1]
+    }
+
     async testRun() {
         // let detail = await this.idToDetail('BV1iP4y1Y7NE')
         // //console.log(detail)
@@ -363,7 +398,10 @@ module.exports.Music = class {
         await this.parseRequest("播放 BV1iP4y1Y7NE")
 
     }
+
+
 }
+
 
 // let music = new Music()
 // music.testRun()
