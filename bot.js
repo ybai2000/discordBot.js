@@ -191,8 +191,8 @@ function fudu(message) {
   else {
     var index = recorder.channel.indexOf(message.channel.id)
     if (recorder.data[index] == message.content) {
-      // if(!recorder.member[index].includes(message.author.id)){
-      if (true) {
+       if(!recorder.member[index].includes(message.author.id)){
+      //if (true) {
         recorder.repet[index] += 1
         recorder.member[index].push(message.author.id)
         if (recorder.repet[index] == 2) {
