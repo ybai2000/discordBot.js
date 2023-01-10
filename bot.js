@@ -1,4 +1,4 @@
-
+const key = require("./key.json")
 const { Client, Intents } = require('discord.js');
 const Covid = require('./covid.js');
 const Ding = require('./ding.js');
@@ -150,7 +150,7 @@ client.on('messageCreate', message => {
 
 });
 
-client.login('NjI3MzQ4MzcxNjE0NTk3MTYw.XY7qFg.Ao3wLnkiTTegot9Co7_5fsSYSpY')
+client.login(key.key)
 
 function time() {
 
