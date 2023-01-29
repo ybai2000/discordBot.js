@@ -46,7 +46,7 @@ module.exports.Music = class {
         player.on(Voice.AudioPlayerStatus.AutoPaused, () => {
             player.stop()
         })
-        player.on('error', err =>{
+        player.on('error', err => {
             console.log("Error: ", err.message)
         })
     }
@@ -75,7 +75,8 @@ module.exports.Music = class {
             let audioStream = Got.stream(queueElem.song.url[0], {
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
-                    "refer": "https://bilibili.com"
+                    "refer": "https://bilibili.com",
+                    "platform": "html5"
                 }
             })
             let audio = Voice.createAudioResource(audioStream)
@@ -95,7 +96,10 @@ module.exports.Music = class {
     }
 
     async retry() {
-        let audioStream = Got.stream(nowPlaying.song.song.url[0], {
+        let url = this.getLink(nowPlaying.song.song).url
+        //let url = nowPlaying.song.song.url
+        let num = Math.floor(Math.random() * url.length)
+        let audioStream = Got.stream(url[num], {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
                 "refer": "https://bilibili.com"
@@ -154,12 +158,16 @@ module.exports.Music = class {
                 })
 
         }
-        else if(input.includes("www.bilibili.com")){
+        else if (input.includes("www.bilibili.com")) {
             let id = await this.getByVidURL(input)
             this.addVideo(id, true, message)
+                .catch(err => {
+                    err = '```\n出错了: ' + err + '```'
+                    message.channel.send(err)
+                })
         }
         else {
-            let searchResult = await this.search(input)
+            let searchResult = await this.search(message.content)
             let text = '```css\n'
             searchResult.forEach((res, index) => {
                 text += index + ": " + res.title + '  ' + res.author + '\n'
@@ -188,6 +196,10 @@ module.exports.Music = class {
                 return
             }
             this.addVideo(record.data[num].bvid, false, message)
+                .catch(err => {
+                    err = '```\n出错了: ' + err + '```'
+                    message.channel.send(err)
+                })
         }
         else if (record.status == 'onPart') {
             delete this.user[message.author.username]
@@ -273,7 +285,9 @@ module.exports.Music = class {
     }
 
 
-    async search(keyword) {
+    async search(message) {
+        let keyword = message.match(/(?<=\s).*/)[0]
+        //keyword.replaceAll(" ", "+")
         let res = await Axios.get('http://api.bilibili.com/x/web-interface/search/all/v2', {
             params: {
                 keyword: keyword
@@ -350,7 +364,7 @@ module.exports.Music = class {
             case -403:
                 throw 'bot无权播放该视频'
             case -404:
-                throw '没有这个视频'
+                throw '没有这个视频，可能是由于版权限制'
             case 62002:
                 throw '视频不可见'
             case 62004:
@@ -377,13 +391,13 @@ module.exports.Music = class {
     }
 
     async getByVidURL(url) {
-        let webPage = await Axios.get(url).catch(err =>{throw "网址有误"})
+        let webPage = await Axios.get(url).catch(err => { throw "网址有误" })
         let aid_expr = /"aid":\d+/
         let cid_expr = /"pages":\[.+?\]/
         let content = await webPage.data
         let cid = content.match(cid_expr)
         let aid = content.match(aid_expr)
-        if(aid == null){
+        if (aid == null) {
             throw "网址有误"
         }
         return aid[0].split(":")[1]
