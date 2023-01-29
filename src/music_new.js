@@ -2,6 +2,7 @@ var COOKIE = `buvid3=B2F2CFDC-4012-494F-893F-BFCD1C136695167644infoc; fingerprin
 const Axios = require('axios');
 const Voice = require('@discordjs/voice');
 const Events = require('events');
+const {EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder} = require('discord.js')
 //需要使用11.8.3版本的got,否则只能使用import格式
 const Got = require('got');
 const em = new Events.EventEmitter();
@@ -168,15 +169,35 @@ module.exports.Music = class {
                 })
         }
         else {
-            let searchResult = await this.search(message.content)
+            let searchResult = await this.search(message)
             let text = '```css\n'
-            searchResult.forEach((res, index) => {
-                text += index + ": " + res.title + '  ' + res.author + '\n'
-            })
-            text += 'c: 取消\n'
+            let page = 0
+            for(let index = 0; index < 9; index++){
+                text += (index + 1) + ": " + searchResult[index+page*9].title + '  ' + searchResult[index+page*9].author + '\n'
+            }
+            // searchResult.forEach((res, index) => {
+            //     text += index + ": " + res.title + '  ' + res.author + '\n'
+            // })
+            text += '0 或 c: 取消\n'
             text += '```'
-            message.channel.send(text)
-            this.user[message.author.username] = { status: 'onSearch', data: searchResult }
+
+            let prev = new ButtonBuilder()
+                .setCustomId('prev')
+                .setLabel('←')
+                .setStyle(ButtonStyle.Primary)
+
+            let next = new ButtonBuilder()
+                .setCustomId('next')
+                .setLabel('→')
+                .setStyle(ButtonStyle.Primary)
+
+            
+            let row = new ActionRowBuilder().addComponents([prev, next])
+
+            let embed = new EmbedBuilder()
+            .setDescription(text)
+            let respond = message.channel.send({embeds: [embed], components:[row]})
+            this.user[message.author.username] = { status: 'onSearch', data: searchResult.slice(page*9, page*9+9), message: respond }
         }
     }
 
@@ -186,13 +207,13 @@ module.exports.Music = class {
         if (record == null) {
             throw '记录中没有这个request'
         }
-        else if (num == 'c') {
+        else if (num == '0' || num == 'c') {
             delete this.user[message.author.username]
             message.channel.send('已取消')
         }
         else if (record.status == 'onSearch') {
             delete this.user[message.author.username]
-            if (record.data[num] == undefined) {
+            if (num > 9 || num < 0 || record.data[num-1] == undefined) {
                 message.channel.send('没有这个选项， 已取消')
                 return
             }
@@ -287,7 +308,7 @@ module.exports.Music = class {
 
 
     async search(message) {
-        let keyword = message.match(/(?<=\s).*/)[0]
+        let keyword = message.content.match(/(?<=\s).*/)[0]
         //keyword.replaceAll(" ", "+")
         let res = await Axios.get('http://api.bilibili.com/x/web-interface/search/all/v2', {
             params: {
@@ -321,7 +342,7 @@ module.exports.Music = class {
             throw "什么都没有找到"
         }
         let res = []
-        videos.slice(0, 10).forEach(video => {
+        videos.slice(0, 45).forEach(video => {
             let title = video.title
             title = title.replaceAll('<em class="keyword">', '[')
             title = title.replaceAll('</em>', ']')

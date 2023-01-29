@@ -34,16 +34,19 @@ async function send(message){
     .setTitle("https://www.pixiv.net/artworks/"+pid)
     .setDescription("作者："+author)
     .setImage('attachment:/'+path)
-    var msg = await message.channel.send({embeds:[embed], files:[path]})
-    msg.react('👍')
-    msg.react('👎')
-    //message.channel.send('作者：' + author)
-    fs.unlink(path,()=>{
-
+    //var msg = await message.channel.send({embeds:[embed], files:[path]})
+    // msg.react('👍')
+    // msg.react('👎')
+    message.channel.send({embeds:[embed], files:[path]}).then(msg =>{
+        msg.react('👍')
+        msg.react('👎')
+        fs.unlink(path, ()=>{})
+        if (dir.length < 70){
+            fillLib()
+        }
     })
-    if (dir.length < 70){
-        fillLib()
-    }
+    //message.channel.send('作者：' + author)
+
 
 }
 
