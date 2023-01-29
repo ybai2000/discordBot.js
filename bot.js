@@ -1,5 +1,5 @@
 const key = require("./key.json")
-const { Client, Intents } = require('discord.js');
+const { Client, Partials, GatewayIntentBits } = require('discord.js');
 const Covid = require('./covid.js');
 const Ding = require('./ding.js');
 const Answer = require('./answer.js');
@@ -10,12 +10,17 @@ const Memes = require('./wordsOfDing.js')
 const Lsp = require('./lsp.js');
 const Help = require('./help.js');
 const client = new Client({
-  partials: ["CHANNEL"],
-  intents: [Intents.FLAGS.GUILDS,
-  Intents.FLAGS.GUILD_MESSAGES,
-  Intents.FLAGS.DIRECT_MESSAGES,
-  Intents.FLAGS.DIRECT_MESSAGE_TYPING,
-  Intents.FLAGS.GUILD_VOICE_STATES]
+  partials: [Partials.Channel],
+  intents: [GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMessageTyping,
+    GatewayIntentBits.MessageContent
+  ]
 });
 music = new Music.Music()
 

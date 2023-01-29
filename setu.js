@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { Http2ServerRequest } = require('http2');
 
 //const success = false;
@@ -30,7 +30,7 @@ async function send(message){
     var author = dir[rand].split(";")[1].split(".")[0]
     var pid = dir[rand].split(";")[0]
     //var msg = await message.channel.send({files:[path]})
-    const embed = new MessageEmbed()
+    const embed = new EmbedBuilder()
     .setTitle("https://www.pixiv.net/artworks/"+pid)
     .setDescription("作者："+author)
     .setImage('attachment:/'+path)

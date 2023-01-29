@@ -96,7 +96,8 @@ module.exports.Music = class {
     }
 
     async retry() {
-        let url = this.getLink(nowPlaying.song.song).url
+        let cidElem = await this.getLink(nowPlaying.song.song)
+        let url = cidElem.url
         //let url = nowPlaying.song.song.url
         let num = Math.floor(Math.random() * url.length)
         let audioStream = Got.stream(url[num], {
