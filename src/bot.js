@@ -1,28 +1,46 @@
-const key = require("./key.json")
-const { Client, Partials, GatewayIntentBits } = require('discord.js');
+const key = require("../key.json");
+const { Client, Partials, GatewayIntentBits, Collection } = require('discord.js');
+const fs = require('fs');
 const Covid = require('./covid.js');
 const Ding = require('./ding.js');
-const Answer = require('./answer.js');
-const Setu = require('./setu.js')
-Music = require('./music_new.js');
+const Answer = require('./message/answer.js');
+const Setu = require('./util/setuLib.js')
+//Music = require('./util/music_new.js');
 // const Music = require('./music.js')
 const Memes = require('./wordsOfDing.js')
-const Lsp = require('./lsp.js');
-const Help = require('./help.js');
+const Lsp = require('./util/lsp.js');
+const Help = require('./commands/tools/help.js');
+const { Music } = require("./util/music_new.js");
+
+
 const client = new Client({
   partials: [Partials.Channel],
   intents: [GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.DirectMessageTyping,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildMessageTyping,
-    GatewayIntentBits.MessageContent
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.DirectMessages,
+  GatewayIntentBits.DirectMessageTyping,
+  GatewayIntentBits.GuildVoiceStates,
+  GatewayIntentBits.GuildMembers,
+  GatewayIntentBits.GuildMessageReactions,
+  GatewayIntentBits.GuildMessageTyping,
+  GatewayIntentBits.MessageContent
   ]
 });
-music = new Music.Music()
+client.commands = new Collection()
+client.commandArray = []
+client.music = new Music()
+
+const functionFolders = fs.readdirSync(`./src/functions`)
+for (const folder of functionFolders) {
+  const functionFiles = fs.readdirSync(`./src/functions/${folder}`).filter(file => file.endsWith('.js'))
+  for (const file of functionFiles) require(`./functions/${folder}/${file}`)(client)
+}
+
+client.handleEvents()
+client.handleCommands()
+
+
+// music = new Music.Music()
 
 var recorder = {
   repet: [],
@@ -30,9 +48,9 @@ var recorder = {
   channel: [],
   member: []
 }
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-});
+// client.once('ready', () => {
+//   console.log(`Logged in as ${client.user.tag}!`);
+// });
 
 client.on('messageCreate', message => {
   var author = message.author.id;
@@ -41,14 +59,14 @@ client.on('messageCreate', message => {
     return;
   }
   var txt = message.content
-  Answer.answer(txt, message);
-  if (txt.length <= 2 && (!isNaN(txt) || txt == 'c' || txt == 'a')) {
-    let username = message.author.username
-    if (music.user[username] != null) {
-      music.handleSelection(message)
-    }
-  }
-  else if (txt == "测试") {
+  //Answer.answer(txt, message);
+  // if (txt.length <= 2 && (!isNaN(txt) || txt == 'c' || txt == 'a')) {
+  //   let username = message.author.username
+  //   if (music.user[username] != null) {
+  //     music.handleSelection(message)
+  //   }
+  // }
+  if (txt == "测试") {
     //message.channel.send('没有测试项目');
 
 
@@ -62,69 +80,69 @@ client.on('messageCreate', message => {
     //Music.find("https://www.bilibili.com/video/BV1kf4y1y7bX")
   }
 
-  else if (txt == "时间") {
-    message.channel.send(Ding.dingTime());
-    //message.channel.send(time());
-  }
-  else if (txt == "注卵") {
-    message.channel.send('该注卵了<@135118641657020416>')
-  }
-  else if (txt == "注卵时间") {
-    message.channel.send('<@135118641657020416>请立即注卵')
-  }
-  else if (txt.includes("溜了") || txt.includes("跑路")) {
-    message.react('🇫🇷');
-  }
-  else if (txt == "疫情") {
-    //Covid.getCovid(message);
-    message.channel.send("学校统计疫情网站没了")
-  }
-  else if (txt == "色图") {
-    //message.channel.send("色图功能暂时离线")
-    if (message.channel.name == '字幕组' || message.channel.name == "色图") {
-      Setu.setu(message)
-    }
-    else {
-      //Setu.setu(message)
-      message.channel.send("在这里？不是吧阿sir")
-    }
-  }
-  else if (txt == "语录") {
-    if (message.channel.name == '字幕组') {
-      Memes.wordsOfDing(message)
-    }
-    else {
-      message.channel.send("你要公开处刑吗")
-    }
-  }
-  else if (txt == "猛犸") {
-    Memes.menMa(message)
-  }
-  else if (txt == "piip") {
-    if (message.author.id == "269259720085209099") {
-      const http = require('https')
-      http.get("https://checkip.amazonaws.com", (res) => {
-        let body = ""
+  // else if (txt == "时间") {
+  //   message.channel.send(Ding.dingTime());
+  //   //message.channel.send(time());
+  // }
+  // else if (txt == "注卵") {
+  //   message.channel.send('该注卵了<@135118641657020416>')
+  // }
+  // else if (txt == "注卵时间") {
+  //   message.channel.send('<@135118641657020416>请立即注卵')
+  // }
+  // else if (txt.includes("溜了") || txt.includes("跑路")) {
+  //   message.react('🇫🇷');
+  // }
+  // else if (txt == "疫情") {
+  //   //Covid.getCovid(message);
+  //   message.channel.send("学校统计疫情网站没了")
+  // }
+  // else if (txt == "色图") {
+  //   //message.channel.send("色图功能暂时离线")
+  //   if (message.channel.name == '字幕组' || message.channel.name == "色图") {
+  //     Setu.setu(message)
+  //   }
+  //   else {
+  //     //Setu.setu(message)
+  //     message.channel.send("在这里？不是吧阿sir")
+  //   }
+  // }
+  // else if (txt == "语录") {
+  //   if (message.channel.name == '字幕组') {
+  //     Memes.wordsOfDing(message)
+  //   }
+  //   else {
+  //     message.channel.send("你要公开处刑吗")
+  //   }
+  // }
+  // else if (txt == "猛犸") {
+  //   Memes.menMa(message)
+  // }
+  // else if (txt == "piip") {
+  //   if (message.author.id == "269259720085209099") {
+  //     const http = require('https')
+  //     http.get("https://checkip.amazonaws.com", (res) => {
+  //       let body = ""
 
-        res.on("data", (chunk) => {
-          body += chunk
-        })
-        res.on("end", () => {
-          message.author.send(body)
-        })
-      })
-    }
+  //       res.on("data", (chunk) => {
+  //         body += chunk
+  //       })
+  //       res.on("end", () => {
+  //         message.author.send(body)
+  //       })
+  //     })
+  //   }
 
-  }
-  else if (txt == "谁是老色批") {
-    Lsp.lsp(message)
-  }
-  else if (txt == "我有多色批" || txt == "我有多色批？" || txt == "我有多色批?") {
-    Lsp.amI(message)
-  }
-  else if (txt == "请教教我") {
-    Help.help(message)
-  }
+  // }
+  // else if (txt == "谁是老色批") {
+  //   Lsp.lsp(message)
+  // }
+  // else if (txt == "我有多色批" || txt == "我有多色批？" || txt == "我有多色批?") {
+  //   Lsp.amI(message)
+  // }
+  // else if (txt == "请教教我") {
+  //   //Help.help(message)
+  // }
   else if (txt[0] == '播' && txt[1] == '放' && txt[2] == ' ') {
     // Music.music(message).catch(err=>{
     //   message.channel.send(err)
@@ -140,22 +158,22 @@ client.on('messageCreate', message => {
   // else if (txt == "别唱了"){
 
   //}
-   else if (txt == "切歌"){
+  else if (txt == "切歌") {
     music.play(true, message)
   }
-  else if(txt == "离开频道"){
+  else if (txt == "离开频道") {
     music.endConnection()
   }
-  else if(txt == "进来唱歌"){
+  else if (txt == "进来唱歌") {
     music.newVoiceConnection(message)
   }
   else {
-    fudu(message);
+    //fudu(message);
   }
 
 });
 
-client.login(key.key)
+
 
 function time() {
 
@@ -196,8 +214,8 @@ function fudu(message) {
   else {
     var index = recorder.channel.indexOf(message.channel.id)
     if (recorder.data[index] == message.content) {
-       if(!recorder.member[index].includes(message.author.id)){
-      //if (true) {
+      if (!recorder.member[index].includes(message.author.id)) {
+        //if (true) {
         recorder.repet[index] += 1
         recorder.member[index].push(message.author.id)
         if (recorder.repet[index] == 2) {
@@ -217,3 +235,4 @@ function fudu(message) {
 }
 
 
+client.login(key.key)

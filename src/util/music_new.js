@@ -2,7 +2,7 @@ var COOKIE = `buvid3=B2F2CFDC-4012-494F-893F-BFCD1C136695167644infoc; fingerprin
 const Axios = require('axios');
 const Voice = require('@discordjs/voice');
 const Events = require('events');
-const {EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder} = require('discord.js')
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js')
 //需要使用11.8.3版本的got,否则只能使用import格式
 const Got = require('got');
 const em = new Events.EventEmitter();
@@ -112,15 +112,16 @@ module.exports.Music = class {
     }
 
 
-    newVoiceConnection(message) {
-        if (!message.member.voice.channel) {
+    //newVoiceConnection(message) {
+    newVoiceConnection(channel, guild) {
+        if (!channel) {
 
             throw "你先进个频道"
         }
         this.voiceConnection = Voice.joinVoiceChannel({
-            channelId: message.member.voice.channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
+            channelId: channel.id,
+            guildId: guild.id,
+            adapterCreator: guild.voiceAdapterCreator
         })
         this.voiceConnection.subscribe(player)
         this.voiceConnection.on('stateChange', (oldState, newState) => {
@@ -139,41 +140,41 @@ module.exports.Music = class {
         this.voiceConnection = null
     }
 
-    async parseRequest(message) {
-        let input = message.content.split(' ')[1]
+    async parseRequest(interaction) {
+        let input = interaction.options.getString("目标")
         //let input = 'BV1iP4y1Y7NE'
         if (input[0] == 'B' && input[1] == 'V') {
 
-            this.addVideo(input, false, message)
+            this.addVideo(input, false, interaction)
                 .catch(err => {
                     err = '```\n出错了: ' + err + '```'
-                    message.channel.send(err)
+                    interaction.editReply(err)
                 })
         }
         else if (input[0] == 'A' && input[1] == 'V' ||
             input[0] == 'a' && input[1] == 'v') {
             input = input.substring(2)
-            this.addVideo(input, true, message)
+            this.addVideo(input, true, interaction)
                 .catch(err => {
                     err = '```\n出错了: ' + err + '```'
-                    message.channel.send(err)
+                    interaction.editReply(err)
                 })
 
         }
         else if (input.includes("www.bilibili.com")) {
             let id = await this.getByVidURL(input)
-            this.addVideo(id, true, message)
+            this.addVideo(id, true, interaction)
                 .catch(err => {
                     err = '```\n出错了: ' + err + '```'
-                    message.channel.send(err)
+                    interaction.editReply(err)
                 })
         }
         else {
-            let searchResult = await this.search(message)
+            let searchResult = await this.search(interaction)
             let text = '```css\n'
             let page = 0
-            for(let index = 0; index < 9; index++){
-                text += (index + 1) + ": " + searchResult[index+page*9].title + '  ' + searchResult[index+page*9].author + '\n'
+            for (let index = 0; index < 9; index++) {
+                text += (index + 1) + ": " + searchResult[index + page * 9].title + '  ' + searchResult[index + page * 9].author + '\n'
             }
             // searchResult.forEach((res, index) => {
             //     text += index + ": " + res.title + '  ' + res.author + '\n'
@@ -191,13 +192,13 @@ module.exports.Music = class {
                 .setLabel('→')
                 .setStyle(ButtonStyle.Primary)
 
-            
+
             let row = new ActionRowBuilder().addComponents([prev, next])
 
             let embed = new EmbedBuilder()
-            .setDescription(text)
-            let respond = message.channel.send({embeds: [embed], components:[row]})
-            this.user[message.author.username] = { status: 'onSearch', data: searchResult.slice(page*9, page*9+9), message: respond }
+                .setDescription(text)
+            interaction.editReply({ embeds: [embed], components: [row] })
+            this.user[interaction.user.username] = { status: 'onSearch', data: searchResult.slice(page * 9, page * 9 + 9), interaction: interaction }
         }
     }
 
@@ -209,106 +210,125 @@ module.exports.Music = class {
         }
         else if (num == '0' || num == 'c') {
             delete this.user[message.author.username]
-            message.channel.send('已取消')
+            let embed = new EmbedBuilder().setDescription('已取消')
+            record.interaction.editReply({ embeds: [embed], components: [] })
+            message.delete()
         }
         else if (record.status == 'onSearch') {
             delete this.user[message.author.username]
-            if (num > 9 || num < 0 || record.data[num-1] == undefined) {
-                message.channel.send('没有这个选项， 已取消')
+            if (num > 9 || num < 0 || record.data[num - 1] == undefined) {
+                let embed = new EmbedBuilder().setDescription("没有这个选项，已取消")
+                record.interaction.editReply({ embeds: [embed], components: [] })
+                message.delete()
                 return
             }
-            this.addVideo(record.data[num].bvid, false, message)
+            this.addVideo(record.data[num - 1].bvid, false, record.interaction)
                 .catch(err => {
                     err = '```\n出错了: ' + err + '```'
-                    message.channel.send(err)
+                    let embed = new EmbedBuilder().setDescription(err)
+                    record.interaction.editReply({ embeds: [embed], components: [] })
                 })
+            message.delete()
         }
         else if (record.status == 'onPart') {
             delete this.user[message.author.username]
             if (num == 'a') {
                 record.data.forEach(res => {
-                    this.addPart(res, message)
+                    this.addPart(res, record.interaction)
                         .catch(err => {
                             err = '```\n出错了: ' + err + '```'
-                            message.channel.send(err)
+                            let embed = new EmbedBuilder().setDescription(err)
+                            record.interaction.editReply({ embeds: [embed], components: [] })
+
                         })
+
                 })
+                message.delete()
             }
             else {
                 if (record.data[num] == undefined) {
-                    message.channel.send('没有这个选项， 已取消')
+                    let embed = new EmbedBuilder().setDescription("没有这个选项，已取消")
+                    record.interaction.editReply({ embeds: [embed], components: [] })
+                    message.delete()
                     return
                 }
                 this.addPart(record.data[num], message)
                     .catch(err => {
                         err = '```\n出错了: ' + err + '```'
-                        message.channel.send(err)
+                        let embed = new EmbedBuilder().setDescription(err)
+                        record.interaction.editReply({ embeds: [embed], components: [] })
                     })
+                message.delete()
 
             }
 
 
             if (this.voiceConnection == null) {
                 try {
-                    this.newVoiceConnection(message)
+                    this.newVoiceConnection(message.member.voice.channel, message.guild)
                 }
                 catch (err) {
-                    message.channel.send(err)
+                    err = '```\n出错了: ' + err + '```'
+                    let embed = new EmbedBuilder().setDescription(err)
+                    record.interaction.editReply({ embeds: [embed], components: [] })
                     return
                 }
             }
             let text = "将 " + record.data[0].videoTitle + " 加入队列"
-            message.channel.send(text)
+            let embed = new EmbedBuilder().setDescription(text)
+            record.interaction.editReply({ embeds: [embed], components: [] })
             em.emit('newSong')
         }
 
     }
 
-    async addVideo(id, isAV = false, message) {
+    async addVideo(id, isAV = false, interaction) {
 
         let detail = await this.idToDetail(id, isAV)
         let cids = await this.findCid(detail)
         if (cids.length == 1) {
             let song = await this.getLink(cids[0])
-            queue.push({ song: song, channel: message.channel })
+            queue.push({ song: song, channel: interaction.channel })
             if (this.voiceConnection == null) {
                 try {
-                    this.newVoiceConnection(message)
+                    this.newVoiceConnection(interaction.member.voice.channel, interaction.guild)
                 }
                 catch (err) {
-                    message.channel.send(err)
+                    interaction.editReply(err)
                     return
                 }
             }
             let text = "将 " + song.videoTitle + " 加入队列"
-            message.channel.send(text)
+            let embed = new EmbedBuilder().setDescription(text)
+            interaction.editReply({ embeds: [embed], components: [] })
             em.emit('newSong')
         }
         else {
-            this.askPart(cids, message)
+            this.askPart(cids, interaction)
         }
 
     }
 
-    async askPart(cids, message) {
+    async askPart(cids, interaction) {
         let text = '```css\n' + cids[0].videoTitle + '\n该视频下有多个分p\n'
         cids.forEach((res, i) => {
             text += i + ': ' + res.partTitle + '\n'
         })
         text += 'a: 全部\nc: 取消\n```'
-        message.channel.send(text)
-        this.user[message.author.username] = { status: 'onPart', data: cids }
+        let embed = new EmbedBuilder().setDescription(text)
+        interaction.editReply({ embeds: [embed], components: [] })
+        this.user[interaction.user.username] = { status: 'onPart', data: cids, interaction: interaction }
     }
 
-    async addPart(cid, message) {
+    async addPart(cid, interaction) {
         let song = await this.getLink(cid)
-        queue.push({ song: song, channel: message.channel })
+        queue.push({ song: song, channel: interaction.channel })
         em.emit('newSong')
     }
 
 
-    async search(message) {
-        let keyword = message.content.match(/(?<=\s).*/)[0]
+    async search(interaction) {
+        let keyword = interaction.options.getString("目标")
         //keyword.replaceAll(" ", "+")
         let res = await Axios.get('http://api.bilibili.com/x/web-interface/search/all/v2', {
             params: {

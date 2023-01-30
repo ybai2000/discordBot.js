@@ -1,25 +1,28 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, Attachment, AttachmentBuilder } = require('discord.js');
 const { Http2ServerRequest } = require('http2');
-
+const Lsp = require('./lsp.js');
+const fs = require('fs')
 //const success = false;
 
-module.exports.setu = async function (message) {
-    const Lsp = require('./lsp.js');
-    Lsp.add_lsp(message)
+module.exports.setu = async function (interaction) {
+    
+    Lsp.add_lsp(interaction)
     //https://api.lolicon.app/#/setu?id=telegram-bot
 
-    var url = 'https://api.lolicon.app/setu/v2?r18=2&size=regular&tag!=vtb'
+    var url = 'https://api.lolicon.app/setu/v2?r18=2&size=regular'
     //var url = 'https://api.lolicon.app/setu/v2?size=regular&tag!=vtb'
-    send(message)
+    send(interaction)
 
 
 }
 
-async function send(message){
-    var fs = require('fs')
+async function send(interaction){
+    const message = await interaction.deferReply({
+        fetchReply: true
+    })
     var dir = fs.readdirSync("/home/pi/botData/setu//")
     if (dir.length == 0){
-        message.channel.send("被榨干了，稍后再冲吧")
+        interaction.reply("被榨干了，稍后再冲吧")
         for (var i=0; i < 10; i++){
             fillLib()
         }
@@ -30,16 +33,19 @@ async function send(message){
     var author = dir[rand].split(";")[1].split(".")[0]
     var pid = dir[rand].split(";")[0]
     //var msg = await message.channel.send({files:[path]})
+
+    const file = new AttachmentBuilder(path)
+    
     const embed = new EmbedBuilder()
     .setTitle("https://www.pixiv.net/artworks/"+pid)
     .setDescription("作者："+author)
-    .setImage('attachment:/'+path)
+    //.setImage('attachment://setu.png')
     //var msg = await message.channel.send({embeds:[embed], files:[path]})
     // msg.react('👍')
     // msg.react('👎')
-    message.channel.send({embeds:[embed], files:[path]}).then(msg =>{
-        msg.react('👍')
-        msg.react('👎')
+    interaction.editReply({embeds:[embed], files:[file]}).then(msg =>{
+        // msg.react('👍')
+        // msg.react('👎')
         fs.unlink(path, ()=>{})
         if (dir.length < 70){
             fillLib()
