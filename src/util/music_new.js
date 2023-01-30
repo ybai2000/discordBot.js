@@ -52,9 +52,9 @@ module.exports.Music = class {
         })
     }
 
-    getQueue(message) {
+    getQueue(interaction) {
         if (queue.length == 0) {
-            message.channel.send('列表是空的')
+            interaction.reply('列表是空的')
             return
         }
         let text = '```css\n'
@@ -62,12 +62,12 @@ module.exports.Music = class {
             text += i + ': ' + res.song.videoTitle + '\n'
         })
         text += '```'
-        message.channel.send(text)
+        interaction.reply(text)
     }
 
 
 
-    async play(force = false, message = null) {
+    async play(force = false, interaction = null) {
         if (player.state.status != 'idle' && !force) {
             return
         }
@@ -82,12 +82,18 @@ module.exports.Music = class {
             })
             let audio = Voice.createAudioResource(audioStream)
             let text = '正在播放: ' + queueElem.song.videoTitle
-            queueElem.channel.send(text)
+            if(interaction){
+                interaction.reply(text)
+            }
+            else{
+                queueElem.channel.send(text)
+            }
+            
             nowPlaying = { song: queueElem, time: new Date() }
             player.play(audio)
         }
         else if (force && queue.length == 0) {
-            message.channel.send('没有下一首歌了')
+            interaction.reply('没有下一首歌了')
             player.stop()
             nowPlaying.song = null
             nowPlaying.time = null

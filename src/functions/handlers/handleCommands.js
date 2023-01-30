@@ -15,15 +15,12 @@ module.exports = (client) => {
                 const command = require(`../../commands/${folder}/${file}`)
                 commands.set(command.data.name, command)
                 commandArray.push(command.data.toJSON())
-                console.log(`添加了：${command.data.name}`)
             }
         }
 
         const rest = new REST({version: '9'}).setToken(key)
 
         try{
-            console.log('尝试添加指令')
-
             await rest.put(
                 //给多个guild用则使用 applicationCommand
                 Routes.applicationGuildCommands(botId, dingGuild),{
