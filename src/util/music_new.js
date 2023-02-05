@@ -3,16 +3,19 @@ const Axios = require('axios');
 const Voice = require('@discordjs/voice');
 const Events = require('events');
 const { ytbSearch } = require("./ytb-search")
-const ytdl = require('ytdl-core')
+const ytdl = require('youtube-dl-exec')
 //换用 https://www.npmjs.com/package/play-dl
 const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js')
 const { Video } = require("./video")
 //需要使用11.8.3版本的got,否则只能使用import格式
 const Got = require('got');
+const fs = require('fs')
+
 const em = new Events.EventEmitter();
 let queue = []
 let nowPlaying = { song: null, time: null }
 let player = Voice.createAudioPlayer()
+let child = null
 
 module.exports.Music = class {
 
@@ -31,7 +34,7 @@ module.exports.Music = class {
             console.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`);
         });
         player.on(Voice.AudioPlayerStatus.Idle, () => {
-            if (nowPlaying.time && new Date() - nowPlaying.time < 10000) {
+            if (nowPlaying.time && new Date() - nowPlaying.time < 10000 && !nowPlaying.song.isYtb) {
                 console.log('播放失败 重试')
                 this.retry()
             }
@@ -52,7 +55,7 @@ module.exports.Music = class {
             player.stop()
         })
         player.on('error', err => {
-            console.log("Error: ", err)
+            console.log("Error: ", err.message)
         })
     }
 
@@ -76,16 +79,25 @@ module.exports.Music = class {
             return
         }
         if (queue.length != 0) {
+            if(child){
+                child.cancel
+            }
             if(nowPlaying.stream){
-                nowPlaying.stream.destry
+                nowPlaying.stream.destroy()
             }
             let queueElem = queue.shift()
             let audioStream
             if(queueElem.song.isYtb){
-                audioStream = ytdl(queueElem.song.url, {
-                    filter: "audioonly"
+                child = ytdl.exec(queueElem.song.url, {
+                    'o': '-',
+                    'f': 'ba'
                 })
-                .on('error', err => console.log("下载出错" + err))
+                audioStream = child.stdout
+                child.stderr.pipe(fs.createWriteStream('yt-dlp_err.txt'))
+                // audioStream = ytdl(queueElem.song.url, {
+                //     filter: "audioonly"
+                // })
+                // .on('error', err => console.log("下载出错" + err))
             }
             else{
                 audioStream = Got.stream(queueElem.song.url[0], {
@@ -230,6 +242,33 @@ module.exports.Music = class {
         let input = interaction.options.getString("目标")
         if(input.includes("www.youtube.com")){
             //直接添加，记得catch
+            let title = await Got(`https://noembed.com/embed?dataType=json&url=${input}`)
+            title = JSON.parse(title.body)
+            if(title.error){
+                let embed = new EmbedBuilder()
+                .setDescription("```出错了，网址可能有误```")
+                interaction.editReply({embed})
+                return
+            }
+            title = title.title
+            let video = new Video(title, true,null, null, null, null, input, null)
+            queue.push({song: video, channel: interaction.channel})
+
+            if (this.voiceConnection == null) {
+                try {
+                    this.newVoiceConnection(interaction.member.voice.channel, interaction.guild)
+                }
+                catch (err) {
+                    let embed = new EmbedBuilder().setDescription(err)
+                    record.interaction.editReply({ embeds: [embed], components: [] })
+                    return
+                }
+            }
+
+            let embed = new EmbedBuilder()
+            .setDescription(`将 ${title} 加入队列`)
+            interaction.editReply({embeds: [embed]})
+            em.emit('newSong')
         }
         else{
             let searchResult = await ytbSearch(interaction)
