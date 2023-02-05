@@ -2,7 +2,11 @@ var COOKIE = `buvid3=B2F2CFDC-4012-494F-893F-BFCD1C136695167644infoc; fingerprin
 const Axios = require('axios');
 const Voice = require('@discordjs/voice');
 const Events = require('events');
+const { ytbSearch } = require("./ytb-search")
+const ytdl = require('ytdl-core')
+//换用 https://www.npmjs.com/package/play-dl
 const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js')
+const { Video } = require("./video")
 //需要使用11.8.3版本的got,否则只能使用import格式
 const Got = require('got');
 const em = new Events.EventEmitter();
@@ -27,13 +31,13 @@ module.exports.Music = class {
             console.log(`Audio player transitioned from ${oldState.status} to ${newState.status}`);
         });
         player.on(Voice.AudioPlayerStatus.Idle, () => {
-            if (nowPlaying.time && new Date() - nowPlaying.time < 20000) {
+            if (nowPlaying.time && new Date() - nowPlaying.time < 10000) {
                 console.log('播放失败 重试')
                 this.retry()
             }
             else {
-                if (nowPlaying.time && new Date() - nowPlaying.time < 23000) {
-                    nowPlaying.song.channel.send(nowPlaying.song.song.videoTitle + " 播放失败")
+                if (nowPlaying.time && new Date() - nowPlaying.time < 13000) {
+                    nowPlaying.song.channel.send(nowPlaying.song.song.title + " 播放失败")
                 }
                 em.emit('newSong')
                 this.mostRecentIdle = new Date()
@@ -48,7 +52,7 @@ module.exports.Music = class {
             player.stop()
         })
         player.on('error', err => {
-            console.log("Error: ", err.message)
+            console.log("Error: ", err)
         })
     }
 
@@ -59,7 +63,7 @@ module.exports.Music = class {
         }
         let text = '```css\n'
         queue.forEach((res, i) => {
-            text += i + ': ' + res.song.videoTitle + '\n'
+            text += i + ': ' + res.song.title + '\n'
         })
         text += '```'
         interaction.reply(text)
@@ -72,24 +76,37 @@ module.exports.Music = class {
             return
         }
         if (queue.length != 0) {
+            if(nowPlaying.stream){
+                nowPlaying.stream.destry
+            }
             let queueElem = queue.shift()
-            let audioStream = Got.stream(queueElem.song.url[0], {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
-                    "refer": "https://bilibili.com",
-                    "platform": "html5"
-                }
-            })
-            let audio = Voice.createAudioResource(audioStream)
-            let text = '正在播放: ' + queueElem.song.videoTitle
-            if(interaction){
-                interaction.reply(text)
+            let audioStream
+            if(queueElem.song.isYtb){
+                audioStream = ytdl(queueElem.song.url, {
+                    filter: "audioonly"
+                })
+                .on('error', err => console.log("下载出错" + err))
             }
             else{
-                queueElem.channel.send(text)
+                audioStream = Got.stream(queueElem.song.url[0], {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0",
+                        "refer": "https://bilibili.com",
+                        "platform": "html5"
+                    }
+                })
             }
             
-            nowPlaying = { song: queueElem, time: new Date() }
+            let audio = Voice.createAudioResource(audioStream)
+            let text = '正在播放: ' + queueElem.song.title
+            if (interaction) {
+                interaction.reply(text)
+            }
+            else {
+                queueElem.channel.send(text)
+            }
+
+            nowPlaying = { song: queueElem, time: new Date(), stream: audioStream }
             player.play(audio)
         }
         else if (force && queue.length == 0) {
@@ -101,6 +118,8 @@ module.exports.Music = class {
         }
 
     }
+
+
 
     async retry() {
         let cidElem = await this.getLink(nowPlaying.song.song)
@@ -121,7 +140,6 @@ module.exports.Music = class {
     //newVoiceConnection(message) {
     newVoiceConnection(channel, guild) {
         if (!channel) {
-
             throw "你先进个频道"
         }
         this.voiceConnection = Voice.joinVoiceChannel({
@@ -208,6 +226,28 @@ module.exports.Music = class {
         }
     }
 
+    async parseYtb(interaction){
+        let input = interaction.options.getString("目标")
+        if(input.includes("www.youtube.com")){
+            //直接添加，记得catch
+        }
+        else{
+            let searchResult = await ytbSearch(interaction)
+            let text = '```css\n'
+            let page = 0
+            for(let index = 0; index < 9; index++){
+                text += (index+1)+": "+ searchResult[index+page*9].title + "\n"
+            }
+            text += "0 或 c: 取消\n```"
+
+            let embed = new EmbedBuilder()
+                .setDescription(text)
+            interaction.editReply({ embeds: [embed]})
+            
+            this.user[interaction.user.username] = {status: 'onSearch', data: searchResult.slice(page *9, page*9+9), interaction: interaction}
+        }
+    }
+
     handleSelection(message) {
         let record = this.user[message.author.username]
         let num = message.content
@@ -228,12 +268,18 @@ module.exports.Music = class {
                 message.delete()
                 return
             }
-            this.addVideo(record.data[num - 1].bvid, false, record.interaction)
+            if(record.data[0].isYtb){
+                this.addYtb(record.data[num-1], record.interaction)
+            }
+            else{
+                this.addVideo(record.data[num - 1].bvid, false, record.interaction)
                 .catch(err => {
                     err = '```\n出错了: ' + err + '```'
                     let embed = new EmbedBuilder().setDescription(err)
                     record.interaction.editReply({ embeds: [embed], components: [] })
                 })
+            }
+
             message.delete()
         }
         else if (record.status == 'onPart') {
@@ -258,7 +304,7 @@ module.exports.Music = class {
                     message.delete()
                     return
                 }
-                this.addPart(record.data[num], message)
+                this.addPart(record.data[num - 1], message)
                     .catch(err => {
                         err = '```\n出错了: ' + err + '```'
                         let embed = new EmbedBuilder().setDescription(err)
@@ -274,13 +320,12 @@ module.exports.Music = class {
                     this.newVoiceConnection(message.member.voice.channel, message.guild)
                 }
                 catch (err) {
-                    err = '```\n出错了: ' + err + '```'
                     let embed = new EmbedBuilder().setDescription(err)
                     record.interaction.editReply({ embeds: [embed], components: [] })
                     return
                 }
             }
-            let text = "将 " + record.data[0].videoTitle + " 加入队列"
+            let text = "将 " + record.data[0].title + " 加入队列"
             let embed = new EmbedBuilder().setDescription(text)
             record.interaction.editReply({ embeds: [embed], components: [] })
             em.emit('newSong')
@@ -290,8 +335,8 @@ module.exports.Music = class {
 
     async addVideo(id, isAV = false, interaction) {
 
-        let detail = await this.idToDetail(id, isAV)
-        let cids = await this.findCid(detail)
+        let video = await this.idToDetail(id, isAV)
+        let cids = await this.findCid(video)
         if (cids.length == 1) {
             let song = await this.getLink(cids[0])
             queue.push({ song: song, channel: interaction.channel })
@@ -300,11 +345,12 @@ module.exports.Music = class {
                     this.newVoiceConnection(interaction.member.voice.channel, interaction.guild)
                 }
                 catch (err) {
-                    interaction.editReply(err)
+                    let embed = new EmbedBuilder().setDescription(err)
+                    interaction.editReply({ embeds: [embed], components: [] })
                     return
                 }
             }
-            let text = "将 " + song.videoTitle + " 加入队列"
+            let text = "将 " + song.title + " 加入队列"
             let embed = new EmbedBuilder().setDescription(text)
             interaction.editReply({ embeds: [embed], components: [] })
             em.emit('newSong')
@@ -315,10 +361,29 @@ module.exports.Music = class {
 
     }
 
+    async addYtb(song, interaction){
+        queue.push({ song: song, channel: interaction.channel })
+            if (this.voiceConnection == null) {
+                try {
+                    this.newVoiceConnection(interaction.member.voice.channel, interaction.guild)
+                }
+                catch (err) {
+                    let embed = new EmbedBuilder().setDescription(err)
+                    interaction.editReply({ embeds: [embed], components: [] })
+                    return
+                }
+            }
+            let text = "将 " + song.title + " 加入队列"
+            let embed = new EmbedBuilder().setDescription(text)
+            interaction.editReply({ embeds: [embed], components: [] })
+            em.emit('newSong')
+
+    }
+
     async askPart(cids, interaction) {
-        let text = '```css\n' + cids[0].videoTitle + '\n该视频下有多个分p\n'
+        let text = '```css\n' + cids[0].title + '\n该视频下有多个分p\n'
         cids.forEach((res, i) => {
-            text += i + ': ' + res.partTitle + '\n'
+            text += (i + 1) + ': ' + res.partTitle + '\n'
         })
         text += 'a: 全部\nc: 取消\n```'
         let embed = new EmbedBuilder().setDescription(text)
@@ -355,6 +420,14 @@ module.exports.Music = class {
         return this.parseSearchResult(res)
     }
 
+    async searchYtb(interaction){
+        let videos = ytbSearch(interaction)
+        if(videos.length == 0){
+            interaction.reply("什么都没有找到")
+        }
+        return videos
+    }
+
     parseSearchResult(src) {
         let data = src.data.data.result
         let videos = []
@@ -372,14 +445,15 @@ module.exports.Music = class {
             let title = video.title
             title = title.replaceAll('<em class="keyword">', '[')
             title = title.replaceAll('</em>', ']')
-            res.push({ title: title, bvid: video.bvid, author: video.author })
+            res.push(new Video(title, false, video.bvid, video.author))
+            //res.push({ title: title, bvid: video.bvid, author: video.author })
         })
         return res
     }
 
     //return list of {cid, partTitle, bvid, videoTitle}
-    async findCid(detail) {
-        let param = { bvid: detail.bvid }
+    async findCid(video) {
+        let param = { bvid: video.bvid }
         let parts = []
 
         let res = await Axios.get('http://api.bilibili.com/x/player/pagelist', {
@@ -389,7 +463,8 @@ module.exports.Music = class {
             throw "bv或av转cid时出错"
         }
         res['data']['data'].forEach((data) => {
-            parts.push({ "cid": data.cid, "partTitle": data.part, bvid: detail.bvid, 'videoTitle': detail.videoTitle })
+            parts.push(new Video(video.title, false, video.bvid,null,data.cid,data.part))
+            //parts.push({ "cid": data.cid, "partTitle": data.part, bvid: detail.bvid, 'videoTitle': detail.videoTitle })
         })
         return parts
     }
@@ -418,7 +493,8 @@ module.exports.Music = class {
             case 62004:
                 throw '视频审核中'
         }
-        return { 'videoTitle': res.data.data.title, 'bvid': res.data.data.bvid }
+        return new Video(res.data.data.title,false,res.data.data.bvid)
+        //return { 'videoTitle': res.data.data.title, 'bvid': res.data.data.bvid }
     }
 
     //return list of {cid, partTitle,bvid, videoTitle, [links]}

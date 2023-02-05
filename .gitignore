@@ -7,3 +7,4 @@ key.json
 log
 playlist.js
 run.sh
+src/util/yt-dlp

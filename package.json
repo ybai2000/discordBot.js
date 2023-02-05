@@ -17,9 +17,13 @@
     "discord.js": "^14.7.1",
     "got": "^11.8.3",
     "node-fetch": "^3.0.0",
+    "play-dl": "^1.9.6",
     "request": "^2.88.2",
     "url-to-options": "^2.0.0",
     "xhr2": "^0.2.1",
-    "xmlhttprequest": "^1.8.0"
+    "xmlhttprequest": "^1.8.0",
+    "youtube-dl-exec": "^2.1.11",
+    "youtube-search-without-api-key": "^1.0.7",
+    "ytdl-core": "^4.11.2"
   }
 }

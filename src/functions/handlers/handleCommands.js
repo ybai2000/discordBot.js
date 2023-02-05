@@ -23,7 +23,8 @@ module.exports = (client) => {
         try{
             await rest.put(
                 //给多个guild用则使用 applicationCommand
-                Routes.applicationGuildCommands(botId, dingGuild),{
+                //给单个用 applicationGuildCommand
+                Routes.applicationCommands(botId),{
                     body: client.commandArray,
                 }
             )
