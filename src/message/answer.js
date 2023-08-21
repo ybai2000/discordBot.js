@@ -1,14 +1,25 @@
-module.exports.answer = function (txt, message) {
-    if (txt.charAt(0) == "有" && (txt.charAt(txt.length - 1) == "吗" || txt.charAt(txt.length - 2)
-        == "吗" || txt.charAt(txt.length - 1) == "?" || txt.charAt(txt.length - 1) == "？")) {
+module.exports.answer = function (message) {
+    const txt = message.content
+    if (txt.charAt(0) == "有" &&
+        (
+            txt.charAt(txt.length - 1) == "吗" ||
+            (
+                txt.charAt(txt.length - 2) == "吗" &&
+                (txt.charAt(txt.length - 1) == "?" || txt.charAt(txt.length - 1) == "？")
+            )
+        )) {
         message.channel.send(answer(txt));
-        exist = true;
+        //exist = true;
+        return true
     }
     else if (txt.slice(0, 3) == "有没有") {
         message.channel.send(answerHaveNot(txt));
-        exist = true;
+        //exist = true;
+        return true
     }
-    else if (txt.slice(txt.length - 2, txt.length) == "在吗" || txt.slice(txt.length - 3, txt.length - 1) == "在吗") {
+    else if (txt.slice(txt.length - 2, txt.length) == "在吗" || 
+                txt.slice(txt.length - 3, txt.length) == "在吗？" ||
+                txt.slice(txt.length - 3, txt.length) == "在吗?") {
         var rand = Math.random() * 100;
         console.log(rand)
         if (rand > 50) {
@@ -17,7 +28,9 @@ module.exports.answer = function (txt, message) {
         else {
             message.channel.send("在吗？")
         }
+        return true
     }
+    return false
 }
 
 function answer(str) {

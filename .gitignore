@@ -4,3 +4,8 @@ nohup.out
 out.txt
 test.txt
 key.json
+log
+playlist.js
+run.sh
+src/util/yt-dlp
+yt-dlp_err.txt
