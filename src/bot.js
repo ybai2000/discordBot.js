@@ -4,11 +4,11 @@ const fs = require('fs');
 const Covid = require('./covid.js');
 const Ding = require('./ding.js');
 const Answer = require('./message/answer.js');
-const Setu = require('./util/setuLib.js')
+//const Setu = require('./util/setuLib.js')
 //Music = require('./util/music_new.js');
-// const Music = require('./music.js')
+//const Music = require('./music.js')
 const Memes = require('./wordsOfDing.js')
-const Lsp = require('./util/lsp.js');
+//const Lsp = require('./util/lsp.js');
 const Help = require('./commands/tools/help.js');
 const { Music } = require("./util/music_new.js");
 
